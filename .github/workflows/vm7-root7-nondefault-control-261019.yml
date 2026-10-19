@@ -1,0 +1,48 @@
+name: VM7 Root7 Non-Default Poison Control 261019
+
+on:
+  workflow_dispatch:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  prevention-gate:
+    name: vm7-root7-control-prevention-261019
+    runs-on: ubuntu-latest
+    env:
+      MERGIFY_TOKEN: ${{ secrets.MERGIFY_TOKEN }}
+      MERGIFY_TEST_JOB_NAME: vm7-root7-control-test-261019
+    steps:
+      - name: Install exact supported Test Engine client
+        run: python -m pip install --disable-pip-version-check pytest==8.4.2 pytest-mergify==2026.10.5
+      - name: Run fixed target-owned discriminator test
+        shell: bash
+        env:
+          VM7_MODE: ${{ github.event_name == 'workflow_dispatch' && 'seed' || github.event.pull_request.head.ref == 'control-poison-261019' && 'poison' || 'consumer' }}
+        run: |
+          cat > test_vm7_root7_control_261019.py <<'PY'
+          import os
+          from pathlib import Path
+
+          def test_vm7_root7_control_seed_261019():
+              assert True
+
+          if os.environ["VM7_MODE"] != "seed":
+            def test_vm7_root7_control_candidate_261019():
+              if os.environ["VM7_MODE"] == "poison":
+                assert True
+                return
+
+              marker = Path("/tmp/vm7-root7-control-attempt-261019")
+              if not marker.exists():
+                marker.write_text("first invocation passed\n")
+                assert True
+                return
+
+              raise AssertionError("VM7_ROOT7_CONTROL_RERUN_FAILURE_261019")
+          PY
+          pytest -q -s test_vm7_root7_control_261019.py
+
